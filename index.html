@@ -24,12 +24,17 @@
     // outro site) e navega esta pagina inteira pro login do Google. O
     // Google entao manda de volta pra ESTA MESMA pagina (nao mais direto
     // pro dominio do Apps Script -- ver obterUrlRedirecionamentoOAuth_ em
-    // Code.gs) com "?code=...&state=...". Repassa esses parametros pro
-    // iframe do simulador, que processa a troca do codigo normalmente
-    // (trocarCodigoPorEmailGoogle_) -- sem nunca precisar de uma
-    // navegacao de pagina inteira pro dominio do Google depois do login,
-    // o que e exatamente o passo que cai no bug do Drive em Android com
-    // multiplas contas Google.
+    // Code.gs) com "?code=...&state=...".
+    //
+    // Repassar esse "code" pro IFRAME do simulador (como tentamos antes)
+    // nao funciona -- o Google recusa com 401 uma requisicao com "code"
+    // vinda de dentro de um iframe de outro site (provavelmente por
+    // depender de um cookie de sessao que nao atravessa esse contexto).
+    // Entao, so nesse passo final (com "code" presente), navega a PROPRIA
+    // ABA inteira (nao so o iframe) direto pro simulador ja processando o
+    // login -- sem iframe nesse ultimo passo. Carregamentos SEM "code"
+    // continuam normalmente dentro do iframe (e e isso que contorna o bug
+    // do Drive em Android com multiplas contas).
     var params = new URLSearchParams(window.location.search);
     var code = params.get('code');
     var state = params.get('state');
@@ -38,11 +43,7 @@
     if (code) {
       var destino = URL_SIMULADOR + '?code=' + encodeURIComponent(code);
       if (state) destino += '&state=' + encodeURIComponent(state);
-      iframe.src = destino;
-      // Limpa "code"/"state" da URL desta pagina -- um F5 nao deveria
-      // reenviar um codigo ja usado (o Google so aceita cada codigo uma
-      // vez).
-      window.history.replaceState(null, '', window.location.pathname);
+      window.location.href = destino;
     } else {
       iframe.src = URL_SIMULADOR;
     }
