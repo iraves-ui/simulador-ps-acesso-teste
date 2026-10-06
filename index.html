@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Teste iframe - Simulador PRO SOLUTO</title>
+<title>Simulador PRO SOLUTO</title>
 <style>
   html, body { margin: 0; padding: 0; height: 100%; }
   iframe { width: 100%; height: 100%; border: none; display: block; }
@@ -11,10 +11,41 @@
 </style>
 </head>
 <body>
-  <div id="aviso">Carregando o simulador dentro de um iframe (pagina de teste, fora do dominio do Google)...</div>
-  <iframe
-    src="https://script.google.com/macros/s/AKfycbwsrDtQot_mFNi4PU3wbi301TtQvUZMg2ZGd1P3HabL_iA4XgO4XGF3nDh6DtbXZJuNZw/exec"
-    onload="document.getElementById('aviso').style.display='none'"
-  ></iframe>
+  <div id="aviso">Carregando o simulador...</div>
+  <iframe id="simuladorFrame" onload="document.getElementById('aviso').style.display='none'"></iframe>
+  <script>
+    // URL do deployment do Apps Script (staging, por enquanto -- so pra
+    // teste). O simulador ja libera ser embutido num iframe de qualquer
+    // origem (setXFrameOptionsMode(ALLOWALL) em doGet/Code.gs).
+    var URL_SIMULADOR = 'https://script.google.com/macros/s/AKfycbwsrDtQot_mFNi4PU3wbi301TtQvUZMg2ZGd1P3HabL_iA4XgO4XGF3nDh6DtbXZJuNZw/exec';
+
+    // O botao "Continuar com o Google" do simulador sai do iframe (via
+    // target="_top", o Google nao deixa logar dentro de um iframe de
+    // outro site) e navega esta pagina inteira pro login do Google. O
+    // Google entao manda de volta pra ESTA MESMA pagina (nao mais direto
+    // pro dominio do Apps Script -- ver obterUrlRedirecionamentoOAuth_ em
+    // Code.gs) com "?code=...&state=...". Repassa esses parametros pro
+    // iframe do simulador, que processa a troca do codigo normalmente
+    // (trocarCodigoPorEmailGoogle_) -- sem nunca precisar de uma
+    // navegacao de pagina inteira pro dominio do Google depois do login,
+    // o que e exatamente o passo que cai no bug do Drive em Android com
+    // multiplas contas Google.
+    var params = new URLSearchParams(window.location.search);
+    var code = params.get('code');
+    var state = params.get('state');
+    var iframe = document.getElementById('simuladorFrame');
+
+    if (code) {
+      var destino = URL_SIMULADOR + '?code=' + encodeURIComponent(code);
+      if (state) destino += '&state=' + encodeURIComponent(state);
+      iframe.src = destino;
+      // Limpa "code"/"state" da URL desta pagina -- um F5 nao deveria
+      // reenviar um codigo ja usado (o Google so aceita cada codigo uma
+      // vez).
+      window.history.replaceState(null, '', window.location.pathname);
+    } else {
+      iframe.src = URL_SIMULADOR;
+    }
+  </script>
 </body>
 </html>
