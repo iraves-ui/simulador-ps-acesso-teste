@@ -26,15 +26,20 @@
     // pro dominio do Apps Script -- ver obterUrlRedirecionamentoOAuth_ em
     // Code.gs) com "?code=...&state=...".
     //
-    // Repassar esse "code" pro IFRAME do simulador (como tentamos antes)
+    // Repassar esse "code" pro IFRAME do simulador (tentativa anterior)
     // nao funciona -- o Google recusa com 401 uma requisicao com "code"
-    // vinda de dentro de um iframe de outro site (provavelmente por
-    // depender de um cookie de sessao que nao atravessa esse contexto).
-    // Entao, so nesse passo final (com "code" presente), navega a PROPRIA
-    // ABA inteira (nao so o iframe) direto pro simulador ja processando o
-    // login -- sem iframe nesse ultimo passo. Carregamentos SEM "code"
-    // continuam normalmente dentro do iframe (e e isso que contorna o bug
-    // do Drive em Android com multiplas contas).
+    // vinda de dentro de um iframe de outro site. Entao, so nesse passo
+    // final (com "code" presente), navega a PROPRIA ABA inteira (nao so o
+    // iframe) direto pro simulador ja processando o login. Carregamentos
+    // SEM "code" continuam normalmente dentro do iframe (e e isso que
+    // contorna o bug do Drive em Android com multiplas contas).
+    //
+    // IMPORTANTE: limpa "code"/"state" da URL desta pagina ANTES de
+    // navegar -- o Google so aceita cada codigo UMA VEZ; sem essa
+    // limpeza, revisitar esta mesma aba (ex.: dar "voltar", trocar de
+    // app e voltar, o navegador restaurar a aba) tentaria reusar o
+    // mesmo codigo ja consumido e cairia direto num erro 401, sempre,
+    // nessa aba -- foi exatamente isso que aconteceu no teste anterior.
     var params = new URLSearchParams(window.location.search);
     var code = params.get('code');
     var state = params.get('state');
@@ -43,7 +48,8 @@
     if (code) {
       var destino = URL_SIMULADOR + '?code=' + encodeURIComponent(code);
       if (state) destino += '&state=' + encodeURIComponent(state);
-      window.location.href = destino;
+      window.history.replaceState(null, '', window.location.pathname);
+      window.location.replace(destino);
     } else {
       iframe.src = URL_SIMULADOR;
     }
